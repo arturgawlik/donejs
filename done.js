@@ -1,4 +1,4 @@
-function log() {
-    return "cddd";
-}
-console.log = log;
+const { console } = done;
+
+// initialize builtins
+globalThis.console = console;

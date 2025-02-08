@@ -1,4 +1,5 @@
 #include "done.h"
+#include "console.h"
 #include "v8-external.h"
 #include "v8-fast-api-calls.h"
 #include "v8-function-callback.h"
@@ -11,6 +12,17 @@
 #include <cmath>
 #include <cstdio>
 #include <string>
+
+using v8::Context;
+using v8::FunctionCallbackInfo;
+using v8::FunctionTemplate;
+using v8::Isolate;
+using v8::Local;
+using v8::Number;
+using v8::Object;
+using v8::ObjectTemplate;
+using v8::String;
+using v8::Value;
 
 std::string read_file(std::string path) {
   std::string fileContent;
@@ -43,13 +55,23 @@ int run_js(v8::Local<v8::Context> context, const char *jsFilePath) {
       v8::Script::Compile(context, source).ToLocalChecked();
 
   // Run the script to get the result.
-  v8::Local<v8::Value> result = script->Run(context).ToLocalChecked();
-
-  // Convert the result to an UTF8 string and print it.
-  v8::String::Utf8Value utf8(isolate, result);
-  printf("%s\n", *utf8);
+  // TODO: print errors/crashes?
+  script->Run(context).ToLocalChecked();
 
   return 0;
+}
+
+Local<ObjectTemplate> initializeDoneBuildins() {
+  Isolate *isolate = Isolate::GetCurrent();
+
+  Local<ObjectTemplate> globalObjTmpl = ObjectTemplate::New(isolate);
+  Local<ObjectTemplate> doneGlobalObjTmpl = ObjectTemplate::New(isolate);
+  globalObjTmpl->Set(String::NewFromUtf8Literal(isolate, "done"),
+                     doneGlobalObjTmpl);
+
+  done::console::Initialize(doneGlobalObjTmpl);
+
+  return globalObjTmpl;
 }
 
 int done::Run(int argc, char **argv) {
@@ -71,8 +93,12 @@ int done::Run(int argc, char **argv) {
     // Create a stack-allocated handle scope.
     v8::HandleScope handle_scope(isolate);
 
+    // Create global object
+    Local<ObjectTemplate> globalObjTmpl = initializeDoneBuildins();
+
     // Create a new context.
-    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    v8::Local<v8::Context> context =
+        v8::Context::New(isolate, nullptr, globalObjTmpl);
 
     // Enter the context for compiling and running the hello world script.
     v8::Context::Scope context_scope(context);
