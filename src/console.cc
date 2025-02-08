@@ -1,6 +1,8 @@
+#include "v8-primitive.h"
 #include "v8-template.h"
 #include <v8.h>
 
+using v8::Boolean;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -25,14 +27,14 @@ void LogSlow(const FunctionCallbackInfo<Value> &args) {
     String::Utf8Value utf8(isolate, v8Str);
     char *str = *utf8;
     printf("%s\n", str);
-    return;
-  }
-
-  if (valToLog->IsNumber()) {
+  } else if (valToLog->IsNumber()) {
     Local<Number> v8Number = valToLog.As<Number>();
     int integer = v8Number->Int32Value(context).ToChecked();
     printf("%d\n", integer);
-    return;
+  } else if (valToLog->IsBoolean()) {
+    Local<Boolean> v8Boolean = valToLog.As<Boolean>();
+    bool boolean = v8Boolean->BooleanValue(isolate);
+    printf("%s\n", boolean ? "true" : "false");
   }
 }
 
