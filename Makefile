@@ -17,6 +17,8 @@ V8_FLAGS=-DV8_TYPED_ARRAY_MAX_SIZE_IN_HEAP=0 -DV8_COMPRESS_POINTERS -DV8_INTL_SU
 
 .PHONY: help clean cleanall check install 
 
+rebuild: clean done ## removes all build files, and then make clean build
+
 help:
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z0-9\/_\.-]+:.*?## / {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
@@ -59,4 +61,3 @@ cleanall:
 	$(MAKE) clean
 	rm -fr v8
 
-rebuild: clean done ## removes all build files, and then make clean build
