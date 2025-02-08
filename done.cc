@@ -104,10 +104,14 @@ int done::Run(int argc, char **argv) {
     v8::Context::Scope context_scope(context);
     {
       const char *doneJsFilePath = "./done.js";
-      run_js(context, doneJsFilePath);
+      int res = run_js(context, doneJsFilePath);
+      if (res)
+        return res;
 
       char *indexJsFilePath = argv[1];
-      run_js(context, indexJsFilePath);
+      res = run_js(context, indexJsFilePath);
+      if (res)
+        return res;
     }
   }
 
