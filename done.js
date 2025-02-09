@@ -1,4 +1,3 @@
-const { console } = done;
+import doneJsConsole from "/home/artur-gawlik/git/donejs/lib/console.js";
 
-// initialize builtins
-globalThis.console = console;
+console = globalThis.done.console;

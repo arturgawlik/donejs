@@ -35,6 +35,13 @@ void LogSlow(const FunctionCallbackInfo<Value> &args) {
     Local<Boolean> v8Boolean = valToLog.As<Boolean>();
     bool boolean = v8Boolean->BooleanValue(isolate);
     printf("%s\n", boolean ? "true" : "false");
+  } else {
+    Local<Object> v8Object = valToLog.As<Object>();
+    Local<String> v8Str =
+        v8Object->ObjectProtoToString(context).ToLocalChecked();
+    String::Utf8Value utf8(isolate, v8Str);
+    char *str = *utf8;
+    printf("%s\n", str);
   }
 }
 
