@@ -3,12 +3,12 @@ hobby attempt to implement V8 based JS runtime
 ### FEATURES:
 
 - [x] very basic `console.log`
-- [] es modules
-- [] es modules dynamic `import()`
+- [ ] es modules
+- [ ] es modules dynamic `import()`
 
 ### BUGS:
 
-- [] there is an issue when in js script is a comment - it seems that commented section is evaluated despite that it's commented
+- [ ] there is an issue when in js script is a comment - it seems that commented section is evaluated despite that it's commented
 
 ### RUNNING
 
