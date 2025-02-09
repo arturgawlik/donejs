@@ -24,7 +24,7 @@ std::string read_file(string path) {
 
   std::ifstream file(path);
   while (getline(file, tmp)) {
-    fileContent.append(tmp);
+    fileContent.append("\n" + tmp);
   }
   file.close();
 
