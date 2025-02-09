@@ -3,7 +3,7 @@ hobby attempt to implement V8 based JS runtime
 ### FEATURES:
 
 - [x] very basic `console.log`
-- [ ] es modules
+- [x] es modules
 - [ ] es modules dynamic `import()`
 
 ### BUGS:
