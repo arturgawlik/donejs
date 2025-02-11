@@ -53,6 +53,8 @@ int done::Run(int argc, char **argv) {
     // Enter the context for compiling and running the hello world script.
     Context::Scope context_scope(context);
     {
+      done::module::InitDynamicImports();
+
       const char *doneJsFilePath = "./done.js";
       int res = done::module::Run(doneJsFilePath);
       if (res)
