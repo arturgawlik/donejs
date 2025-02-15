@@ -11,4 +11,4 @@ $ ./done ./samples/test.js
 
 - [x] very basic `console.log`
 - [x] es modules `import`
-- [ ] es modules dynamic `import()`
+- [x] es modules dynamic `import()`
