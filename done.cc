@@ -1,6 +1,7 @@
 #include "done.h"
 #include "console.h"
 #include "module.h"
+#include "process.h"
 
 #include "v8.h"
 
@@ -21,6 +22,7 @@ Local<ObjectTemplate> initializeDoneBuildins() {
                      doneGlobalObjTmpl);
 
   done::console::Initialize(doneGlobalObjTmpl);
+  done::process::Initialize(doneGlobalObjTmpl);
 
   return globalObjTmpl;
 }
