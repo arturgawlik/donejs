@@ -1,7 +1,6 @@
-#include "v8-local-handle.h"
-#include "v8-value.h"
 #include "v8.h"
 
+#include <cstdio>
 #include <fstream>
 
 using std::string;
@@ -16,7 +15,6 @@ using v8::Module;
 using v8::Promise;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
-using v8::ScriptOrModule;
 using v8::String;
 using v8::Value;
 
@@ -88,31 +86,33 @@ int run_js(Local<Context> context, const char *jsFilePath) {
   return 0;
 }
 
-MaybeLocal<Promise> dynamic_import(Local<Context> context,
-                                   Local<Data> host_defined_options,
-                                   Local<Value> resource_name,
-                                   Local<String> specifier,
-                                   Local<FixedArray> import_attributes) {
+MaybeLocal<Promise> dynamic_import_cb(Local<Context> context,
+                                      Local<Data> host_defined_options,
+                                      Local<Value> resource_name,
+                                      Local<String> specifier,
+                                      Local<FixedArray> import_attributes) {
+
+  Isolate *isolate = Isolate::GetCurrent();
   Local<Promise::Resolver> resolver =
       Promise::Resolver::New(context).ToLocalChecked();
-  MaybeLocal<Promise> promise(resolver->GetPromise());
-
-  String::Utf8Value name(context->GetIsolate(), specifier);
+  String::Utf8Value name(isolate, specifier);
   Local<Module> module = instantiate_module(context, *name).ToLocalChecked();
-  Local<Value> moduleAsValue = module.As<Value>();
+  module->Evaluate(context).ToLocalChecked();
+  Local<Value> moduleNamespace = module->GetModuleNamespace();
+  resolver->Resolve(context, moduleNamespace).ToChecked();
 
-  resolver->Resolve(context, moduleAsValue).ToChecked();
-  return promise;
+  return resolver->GetPromise();
 }
 
 void InitDynamicImports() {
   Isolate *isolate = Isolate::GetCurrent();
 
-  isolate->SetHostImportModuleDynamicallyCallback(dynamic_import);
+  isolate->SetHostImportModuleDynamicallyCallback(dynamic_import_cb);
 }
 
 int Run(const char *jsFilePath) {
   Isolate *isolate = Isolate::GetCurrent();
+
   Local<Context> context = isolate->GetCurrentContext();
 
   return run_js(context, jsFilePath);
