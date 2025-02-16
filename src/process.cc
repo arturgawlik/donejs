@@ -38,9 +38,12 @@ void ExitSlow(const FunctionCallbackInfo<Value> &args) {
 void Initialize(Local<ObjectTemplate> globalObjTmpl) {
   Isolate *isolate = Isolate::GetCurrent();
 
+  Local<ObjectTemplate> processTmpl = ObjectTemplate::New(isolate);
+  globalObjTmpl->Set(String::NewFromUtf8Literal(isolate, "process"),
+                     processTmpl);
+
   Local<FunctionTemplate> exitFnTmpl = FunctionTemplate::New(isolate, ExitSlow);
-  globalObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "exit"),
-                     exitFnTmpl);
+  processTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "exit"), exitFnTmpl);
 }
 
 } // namespace done::process

@@ -1,6 +1,6 @@
-// TODO: fix that modules expose not working
 import doneJsConsole from "/home/artur-gawlik/git/donejs/lib/console.js";
-import exit from "/home/artur-gawlik/git/donejs/lib/process.js";
+import doneJsProcess from "/home/artur-gawlik/git/donejs/lib/process.js";
 
-console = globalThis.done.console;
-exit = globalThis.done.exit;
+globalThis.console = doneJsConsole;
+globalThis.process = doneJsProcess;
+globalThis.exit = doneJsProcess.exit;
