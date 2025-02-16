@@ -3,12 +3,14 @@
 #include <v8.h>
 
 using v8::Context;
+using v8::Exception;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Isolate;
 using v8::Local;
 using v8::Number;
 using v8::ObjectTemplate;
+using v8::String;
 using v8::Value;
 
 namespace done::process {
@@ -23,12 +25,14 @@ void ExitSlow(const FunctionCallbackInfo<Value> &args) {
     Local<Number> v8Num = exitCode.As<Number>();
     int exitCode = 0;
     v8Num->Int32Value(context).FromMaybe(exitCode);
-    // TODO: probably it's not proper way just exiting process
-    // I think that maybe I should before that cleanup some V8 resources
-    // buuut maybe for now it's totally okay
+    // It seems that simple `exit()` sys call is right here - e.g. in nodejs
+    // before exit appropriate callback `exit` (event) is called, but for my
+    // implementation it seems right thing to do right now.
     exit(exitCode);
   } else {
-    // throw JS exception
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate,
+        "'exitCode' must be an number when calling 'exit()' function")));
   }
 }
 
