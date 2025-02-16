@@ -23,8 +23,7 @@ void ExitSlow(const FunctionCallbackInfo<Value> &args) {
 
   if (exitCode->IsNumber()) {
     Local<Number> v8Num = exitCode.As<Number>();
-    int exitCode = 0;
-    v8Num->Int32Value(context).FromMaybe(exitCode);
+    int exitCode = v8Num->Int32Value(context).FromJust();
     // It seems that simple `exit()` sys call is right here - e.g. in nodejs
     // before exit appropriate callback `exit` (event) is called, but for my
     // implementation it seems right thing to do right now.
