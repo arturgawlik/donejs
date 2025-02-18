@@ -1,7 +1,9 @@
 #include "done.h"
 #include "console.h"
+#include "fetch.h"
 #include "module.h"
 #include "process.h"
+#include "syscall-wrapper.h"
 
 #include "v8.h"
 
@@ -23,6 +25,8 @@ Local<ObjectTemplate> initializeDoneBuildins() {
 
   done::console::Initialize(doneGlobalObjTmpl);
   done::process::Initialize(doneGlobalObjTmpl);
+  done::fetch::Initialize(doneGlobalObjTmpl);
+  done::syscall::Initialize(doneGlobalObjTmpl);
 
   return globalObjTmpl;
 }
