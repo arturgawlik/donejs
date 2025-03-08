@@ -1,9 +1,8 @@
-async function myLog(msg) {
-    const { myLogMsg } = await import("/home/artur-gawlik/git/donejs/samples/test2.js");
-    myLogMsg(msg);
+try {
+    // const res = globalThis.done.syscall.socket(2, 1, 0);
+    const res = {};
+    globalThis.done.syscall.getaddrinfo("www.google.com", "http", { ai_family: 'AF_UNSPEC', ai_socktype: 'SOCK_STREAM' }, res);
+    console.log(res);
+} catch (e) {
+    console.log(e.message);
 }
-
-// myLog('Hello, World!');
-
-for (let i = 0; i < 10000; i++)
-    myLog(i);

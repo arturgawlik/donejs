@@ -1,10 +1,15 @@
 #include "v8-container.h"
 #include "v8-isolate.h"
+#include "v8-object.h"
 #include "v8-primitive.h"
 #include <netdb.h>
 #include <string>
 #include <sys/socket.h>
 #include <v8.h>
+
+#include <netdb.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 
 using v8::Array;
 using v8::Boolean;
@@ -53,69 +58,147 @@ void SocketSlow(const FunctionCallbackInfo<Value> &args) {
   args.GetReturnValue().Set(fd);
 }
 
-void hostentAccessor(v8::Local<v8::Name> property,
-                     const v8::PropertyCallbackInfo<v8::Value> &info) {
-  Isolate *isolate = Isolate::GetCurrent();
-  Local<Context> context = isolate->GetCurrentContext();
+void getaddrinfoResultAccessor(
+    v8::Local<v8::Name> property,
+    const v8::PropertyCallbackInfo<v8::Value> &info) {
+  //   Isolate *isolate = Isolate::GetCurrent();
+  //   Local<Context> context = isolate->GetCurrentContext();
 
   Local<Object> self = info.Holder();
   void *ptr = Local<External>::Cast(self->GetInternalField(0))->Value();
-  hostent *hostentPtr = static_cast<hostent *>(ptr);
+  addrinfo *addrinfopTR = static_cast<addrinfo *>(ptr);
+  (void)addrinfopTR;
 
-  bool isHAddr =
-      property->Equals(context, String::NewFromUtf8Literal(isolate, "h_addr"))
-          .FromJust();
-  if (isHAddr) {
-    char *addr = hostentPtr->h_addr_list[0];
-    std::string cppStr(addr);
-    Local<String> addrLocal =
-        String::NewFromUtf8(isolate, cppStr.c_str()).ToLocalChecked();
-    info.GetReturnValue().Set(addrLocal);
-  }
+  // TODO: make below work
+  // bool isHAddr =
+  //     property->Equals(context, String::NewFromUtf8Literal(isolate,
+  //     "h_addr"))
+  //         .FromJust();
+  // if (isHAddr) {
+  //   char *addr = hostentPtr->h_addr_list[0];
+  //   std::string cppStr(addr);
+  //   Local<String> addrLocal =
+  //       String::NewFromUtf8(isolate, cppStr.c_str()).ToLocalChecked();
+  //   info.GetReturnValue().Set(addrLocal);
+  //   return;
+  // }
 
-  bool isHLength =
-      property->Equals(context, String::NewFromUtf8Literal(isolate, "h_length"))
-          .FromJust();
-  if (isHLength) {
-    int length = hostentPtr->h_length;
-    info.GetReturnValue().Set(length);
-  }
+  // bool isHLength =
+  //     property->Equals(context, String::NewFromUtf8Literal(isolate,
+  //     "h_length"))
+  //         .FromJust();
+  // if (isHLength) {
+  //   int length = hostentPtr->h_length;
+  //   info.GetReturnValue().Set(length);
+  //   return;
+  // }
 }
 
-void GetHostByNameSlow(const FunctionCallbackInfo<Value> &args) {
+void GetAddrInfoSlow(const FunctionCallbackInfo<Value> &args) {
   Isolate *isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
 
-  Local<Value> name = args[0].As<Value>();
+  Local<Value> hostArgs = args[0].As<Value>();
+  Local<Value> portArgs = args[1].As<Value>();
+  Local<Value> hintsArgs = args[2].As<Value>();
+  Local<Value> resultsArgs = args[3].As<Value>();
 
-  if (!name->IsString()) {
+  if (!hostArgs->IsString()) {
     isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
         isolate,
-        "'name' must be an string when calling 'gethostbyname' syscall")));
+        "'host' must be an string when calling 'getaddrinfo' syscall")));
+    return;
+  }
+  if (!portArgs->IsString()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate,
+        "'port' must be an string when calling 'getaddrinfo' syscall")));
+    return;
+  }
+  if (!hintsArgs->IsObject()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate,
+        "'hints' must be an object when calling 'getaddrinfo' syscall")));
+    return;
+  }
+  if (!resultsArgs->IsObject()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate,
+        "'results' must be an object when calling 'getaddrinfo' syscall")));
     return;
   }
 
-  Local<String> domainLocal = name->ToString(context).ToLocalChecked();
-  String::Utf8Value domain(context->GetIsolate(), domainLocal);
+  Local<String> hostLocal = hostArgs->ToString(context).ToLocalChecked();
+  Local<String> portLocal = portArgs->ToString(context).ToLocalChecked();
+  Local<Object> hintsLocal = hintsArgs->ToObject(context).ToLocalChecked();
+  Local<Object> resultsLocal = resultsArgs->ToObject(context).ToLocalChecked();
 
-  hostent *hostent = gethostbyname(*domain);
-  if (hostent == nullptr) {
+  String::Utf8Value hostUtf8(context->GetIsolate(), hostLocal);
+  String::Utf8Value portUtf8(context->GetIsolate(), portLocal);
+  Local<Value> hintsAiFamily =
+      hintsLocal->Get(context, String::NewFromUtf8Literal(isolate, "ai_family"))
+          .ToLocalChecked();
+  Local<Value> hintsAiSockType =
+      hintsLocal
+          ->Get(context, String::NewFromUtf8Literal(isolate, "ai_socktype"))
+          .ToLocalChecked();
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof hints);
+  if (hintsAiFamily->StrictEquals(
+          String::NewFromUtf8Literal(isolate, "AF_UNSPEC"))) {
+    hints.ai_family = AF_UNSPEC;
+  }
+  if (hintsAiSockType->StrictEquals(
+          String::NewFromUtf8Literal(isolate, "SOCK_STREAM"))) {
+    hints.ai_socktype = SOCK_STREAM;
+  }
+
+  struct addrinfo *result;
+
+  int errCode = getaddrinfo(*hostUtf8, *portUtf8, &hints, &result);
+  if (errCode != 0) {
+    const char *errmsg = gai_strerror(errCode);
+    std::string msg =
+        std::string("getaddrinfo syscall failed with msg: ") + errmsg;
+
     isolate->ThrowException(Exception::Error(
-        String::NewFromUtf8Literal(isolate, "gethostbyname syscall failed")));
+        String::NewFromUtf8(isolate, msg.c_str()).ToLocalChecked()));
     return;
   }
 
-  //   Local<Object> hostentLocal = Object::New(isolate);
-  Local<ObjectTemplate> hostentTmpl = ObjectTemplate::New(isolate);
-  hostentTmpl->SetInternalFieldCount(1);
-  hostentTmpl->SetNativeDataProperty(
-      String::NewFromUtf8Literal(isolate, "h_addr"), hostentAccessor);
-  hostentTmpl->SetNativeDataProperty(
-      String::NewFromUtf8Literal(isolate, "h_length"), hostentAccessor);
-  Local<Object> hostentLocal =
-      hostentTmpl->NewInstance(context).ToLocalChecked();
-  hostentLocal->SetInternalField(0, External::New(isolate, hostent));
+  Local<ObjectTemplate> resultTmpl = ObjectTemplate::New(isolate);
+  resultTmpl->SetInternalFieldCount(1);
+  resultTmpl->SetNativeDataProperty(
+      String::NewFromUtf8Literal(isolate, "ai_flags"),
+      getaddrinfoResultAccessor);
+  resultTmpl->SetNativeDataProperty(
+      String::NewFromUtf8Literal(isolate, "ai_family"),
+      getaddrinfoResultAccessor);
+  resultTmpl->SetNativeDataProperty(
+      String::NewFromUtf8Literal(isolate, "ai_socktype"),
+      getaddrinfoResultAccessor);
+  resultTmpl->SetNativeDataProperty(
+      String::NewFromUtf8Literal(isolate, "ai_protocol"),
+      getaddrinfoResultAccessor);
+  resultTmpl->SetNativeDataProperty(
+      String::NewFromUtf8Literal(isolate, "ai_addrlen"),
+      getaddrinfoResultAccessor); // this one is nested - how to handle it?
+  resultTmpl->SetNativeDataProperty(
+      String::NewFromUtf8Literal(isolate, "ai_addr"),
+      getaddrinfoResultAccessor);
+  resultTmpl->SetNativeDataProperty(
+      String::NewFromUtf8Literal(isolate, "ai_canonname"),
+      getaddrinfoResultAccessor);
+  resultTmpl->SetNativeDataProperty(
+      String::NewFromUtf8Literal(isolate, "ai_next"),
+      getaddrinfoResultAccessor);
 
+  Local<Object> hostentLocal =
+      resultTmpl->NewInstance(context).ToLocalChecked();
+  hostentLocal->SetInternalField(0, External::New(isolate, result));
+
+  // TODO: figure out how to set this on "resultsLocal"
+  (void)resultsLocal;
   args.GetReturnValue().Set(hostentLocal);
 }
 
@@ -126,15 +209,15 @@ void Initialize(Local<ObjectTemplate> globalObjTmpl) {
   globalObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "syscall"),
                      consoleObjTmpl);
 
+  Local<FunctionTemplate> gethostbynameFnTmpl =
+      FunctionTemplate::New(isolate, GetAddrInfoSlow);
+  consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "getaddrinfo"),
+                      gethostbynameFnTmpl);
+
   Local<FunctionTemplate> socketFnTmpl =
       FunctionTemplate::New(isolate, SocketSlow);
   consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "socket"),
                       socketFnTmpl);
-
-  Local<FunctionTemplate> gethostbynameFnTmpl =
-      FunctionTemplate::New(isolate, GetHostByNameSlow);
-  consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "gethostbyname"),
-                      gethostbynameFnTmpl);
 }
 
 } // namespace done::syscall
