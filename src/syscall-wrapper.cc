@@ -32,30 +32,41 @@ void ConnectSlow(const FunctionCallbackInfo<Value> &args) {
   Isolate *isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
 
-  Local<Value> domainLocal = args[0].As<Value>();
-  Local<Value> typeLocal = args[1].As<Value>();
-  Local<Value> protocolLocal = args[2].As<Value>();
+  Local<Value> socketfdLocal = args[0].As<Value>();
+  Local<Value> aiAddrLocalVal = args[1].As<Value>();
+  Local<Value> aiAddrLenLocal = args[2].As<Value>();
 
-  if (!domainLocal->IsNumber() || !typeLocal->IsNumber() ||
-      !protocolLocal->IsNumber()) {
+  if (!socketfdLocal->IsNumber() || !aiAddrLenLocal->IsNumber()) {
     isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
-        isolate, "'domain', 'type', 'protocol' must be an number when calling "
-                 "'socket' syscall")));
+        isolate, "'socket_fd', 'ai_addrlen' must be an number when calling "
+                 "'connect' syscall")));
+    return;
+  }
+  if (!aiAddrLocalVal->IsObject()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate, "'ai_addr' must be an object when calling "
+                 "'connect' syscall")));
     return;
   }
 
-  int domain = domainLocal->Int32Value(context).ToChecked();
-  int type = typeLocal->Int32Value(context).ToChecked();
-  int protocol = protocolLocal->Int32Value(context).ToChecked();
+  int socketfd = socketfdLocal->Int32Value(context).ToChecked();
+  int aiAddrLen = aiAddrLenLocal->Int32Value(context).ToChecked();
+  Local<Object> aiAddrLocal =
+      aiAddrLocalVal->ToObject(context).ToLocalChecked();
+  void *ptr = Local<External>::Cast(aiAddrLocal->GetInternalField(0))->Value();
+  struct sockaddr *sockaddr = static_cast<struct sockaddr *>(ptr);
 
-  int fd = socket(domain, type, protocol);
-  if (fd == -1) {
-    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
-        isolate, "socket creation by calling `socket` syscall failed")));
+  int connection_result = connect(socketfd, sockaddr, aiAddrLen);
+  if (connection_result == -1) {
+    const char *errmsg = gai_strerror(connection_result);
+    std::string msg = std::string("connect syscall failed with msg: ") + errmsg;
+
+    isolate->ThrowException(Exception::Error(
+        String::NewFromUtf8(isolate, msg.c_str()).ToLocalChecked()));
     return;
   }
 
-  args.GetReturnValue().Set(fd);
+  args.GetReturnValue().Set(connection_result);
 }
 
 void SocketSlow(const FunctionCallbackInfo<Value> &args) {
@@ -275,10 +286,10 @@ void Initialize(Local<ObjectTemplate> globalObjTmpl) {
   consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "socket"),
                       socketFnTmpl);
 
-  // Local<FunctionTemplate> connectFnTmpl =
-  //     FunctionTemplate::New(isolate, SocketSlow);
-  // consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "connect"),
-  //                     connectFnTmpl);
+  Local<FunctionTemplate> connectFnTmpl =
+      FunctionTemplate::New(isolate, ConnectSlow);
+  consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "connect"),
+                      connectFnTmpl);
 }
 
 } // namespace done::syscall
