@@ -61,37 +61,34 @@ void SocketSlow(const FunctionCallbackInfo<Value> &args) {
 void getaddrinfoResultAccessor(
     v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Value> &info) {
-  //   Isolate *isolate = Isolate::GetCurrent();
-  //   Local<Context> context = isolate->GetCurrentContext();
+  Isolate *isolate = Isolate::GetCurrent();
+  Local<Context> context = isolate->GetCurrentContext();
 
   Local<Object> self = info.Holder();
   void *ptr = Local<External>::Cast(self->GetInternalField(0))->Value();
-  addrinfo *addrinfopTR = static_cast<addrinfo *>(ptr);
-  (void)addrinfopTR;
 
-  // TODO: make below work
-  // bool isHAddr =
-  //     property->Equals(context, String::NewFromUtf8Literal(isolate,
-  //     "h_addr"))
-  //         .FromJust();
-  // if (isHAddr) {
-  //   char *addr = hostentPtr->h_addr_list[0];
-  //   std::string cppStr(addr);
-  //   Local<String> addrLocal =
-  //       String::NewFromUtf8(isolate, cppStr.c_str()).ToLocalChecked();
-  //   info.GetReturnValue().Set(addrLocal);
-  //   return;
-  // }
+  struct addrinfo *addrinfo = static_cast<struct addrinfo *>(ptr);
+  if (property
+          ->Equals(context, String::NewFromUtf8Literal(isolate, "ai_addrlen"))
+          .FromJust()) {
+    info.GetReturnValue().Set(addrinfo->ai_addrlen);
+  }
 
-  // bool isHLength =
-  //     property->Equals(context, String::NewFromUtf8Literal(isolate,
-  //     "h_length"))
-  //         .FromJust();
-  // if (isHLength) {
-  //   int length = hostentPtr->h_length;
-  //   info.GetReturnValue().Set(length);
-  //   return;
-  // }
+  if (property->Equals(context, String::NewFromUtf8Literal(isolate, "ai_addr"))
+          .FromJust()) {
+    // idea here is to when this object will be used in another syscall
+    // then `ai_addr` should be picked from internal field
+    //
+    // sidenote: maybe other data reused in syscall should be handled also this
+    // way? thanks to that there is no need to switch between js<=>native types
+    Local<ObjectTemplate> ai_addrTmpl = ObjectTemplate::New(isolate);
+    ai_addrTmpl->SetInternalFieldCount(1);
+    Local<Object> ai_addrLocal =
+        ai_addrTmpl->NewInstance(context).ToLocalChecked();
+    ai_addrLocal->SetInternalField(0,
+                                   External::New(isolate, addrinfo->ai_addr));
+    info.GetReturnValue().Set(ai_addrLocal);
+  }
 }
 
 void GetAddrInfoSlow(const FunctionCallbackInfo<Value> &args) {
@@ -101,7 +98,7 @@ void GetAddrInfoSlow(const FunctionCallbackInfo<Value> &args) {
   Local<Value> hostArgs = args[0].As<Value>();
   Local<Value> portArgs = args[1].As<Value>();
   Local<Value> hintsArgs = args[2].As<Value>();
-  Local<Value> resultsArgs = args[3].As<Value>();
+  // Local<Value> resultsArgs = args[3].As<Value>();
 
   if (!hostArgs->IsString()) {
     isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
@@ -121,17 +118,20 @@ void GetAddrInfoSlow(const FunctionCallbackInfo<Value> &args) {
         "'hints' must be an object when calling 'getaddrinfo' syscall")));
     return;
   }
-  if (!resultsArgs->IsObject()) {
-    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
-        isolate,
-        "'results' must be an object when calling 'getaddrinfo' syscall")));
-    return;
-  }
+  // TODO: for now I don't know how to implement setting Internal Filed
+  // in received object from js land
+  // if (!resultsArgs->IsObject()) {
+  //   isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+  //       isolate,
+  //       "'results' must be an object when calling 'getaddrinfo' syscall")));
+  //   return;
+  // }
 
   Local<String> hostLocal = hostArgs->ToString(context).ToLocalChecked();
   Local<String> portLocal = portArgs->ToString(context).ToLocalChecked();
   Local<Object> hintsLocal = hintsArgs->ToObject(context).ToLocalChecked();
-  Local<Object> resultsLocal = resultsArgs->ToObject(context).ToLocalChecked();
+  // Local<Object> resultsLocal =
+  // resultsArgs->ToObject(context).ToLocalChecked();
 
   String::Utf8Value hostUtf8(context->GetIsolate(), hostLocal);
   String::Utf8Value portUtf8(context->GetIsolate(), portLocal);
@@ -168,37 +168,39 @@ void GetAddrInfoSlow(const FunctionCallbackInfo<Value> &args) {
 
   Local<ObjectTemplate> resultTmpl = ObjectTemplate::New(isolate);
   resultTmpl->SetInternalFieldCount(1);
-  resultTmpl->SetNativeDataProperty(
-      String::NewFromUtf8Literal(isolate, "ai_flags"),
-      getaddrinfoResultAccessor);
-  resultTmpl->SetNativeDataProperty(
-      String::NewFromUtf8Literal(isolate, "ai_family"),
-      getaddrinfoResultAccessor);
-  resultTmpl->SetNativeDataProperty(
-      String::NewFromUtf8Literal(isolate, "ai_socktype"),
-      getaddrinfoResultAccessor);
-  resultTmpl->SetNativeDataProperty(
-      String::NewFromUtf8Literal(isolate, "ai_protocol"),
-      getaddrinfoResultAccessor);
+  // resultTmpl->SetNativeDataProperty(
+  //     String::NewFromUtf8Literal(isolate, "ai_flags"),
+  //     getaddrinfoResultAccessor);
+  // resultTmpl->SetNativeDataProperty(
+  //     String::NewFromUtf8Literal(isolate, "ai_family"),
+  //     getaddrinfoResultAccessor);
+  // resultTmpl->SetNativeDataProperty(
+  //     String::NewFromUtf8Literal(isolate, "ai_socktype"),
+  //     getaddrinfoResultAccessor);
+  // resultTmpl->SetNativeDataProperty(
+  //     String::NewFromUtf8Literal(isolate, "ai_protocol"),
+  //     getaddrinfoResultAccessor);
+
+  // for client only those are needed
   resultTmpl->SetNativeDataProperty(
       String::NewFromUtf8Literal(isolate, "ai_addrlen"),
-      getaddrinfoResultAccessor); // this one is nested - how to handle it?
+      getaddrinfoResultAccessor);
   resultTmpl->SetNativeDataProperty(
       String::NewFromUtf8Literal(isolate, "ai_addr"),
       getaddrinfoResultAccessor);
-  resultTmpl->SetNativeDataProperty(
-      String::NewFromUtf8Literal(isolate, "ai_canonname"),
-      getaddrinfoResultAccessor);
-  resultTmpl->SetNativeDataProperty(
-      String::NewFromUtf8Literal(isolate, "ai_next"),
-      getaddrinfoResultAccessor);
+
+  // resultTmpl->SetNativeDataProperty(
+  //     String::NewFromUtf8Literal(isolate, "ai_canonname"),
+  //     getaddrinfoResultAccessor);
+  // resultTmpl->SetNativeDataProperty(
+  //     String::NewFromUtf8Literal(isolate, "ai_next"),
+  //     getaddrinfoResultAccessor);
 
   Local<Object> hostentLocal =
       resultTmpl->NewInstance(context).ToLocalChecked();
   hostentLocal->SetInternalField(0, External::New(isolate, result));
 
   // TODO: figure out how to set this on "resultsLocal"
-  (void)resultsLocal;
   args.GetReturnValue().Set(hostentLocal);
 }
 
