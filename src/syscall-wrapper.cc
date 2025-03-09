@@ -28,7 +28,7 @@ using v8::Value;
 
 namespace done::syscall {
 
-void SocketSlow(const FunctionCallbackInfo<Value> &args) {
+void ConnectSlow(const FunctionCallbackInfo<Value> &args) {
   Isolate *isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
 
@@ -58,6 +58,41 @@ void SocketSlow(const FunctionCallbackInfo<Value> &args) {
   args.GetReturnValue().Set(fd);
 }
 
+void SocketSlow(const FunctionCallbackInfo<Value> &args) {
+  Isolate *isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  Local<Value> domainLocal = args[0].As<Value>();
+  Local<Value> typeLocal = args[1].As<Value>();
+  Local<Value> protocolLocal = args[2].As<Value>();
+
+  if (!domainLocal->IsNumber() || !typeLocal->IsNumber() ||
+      !protocolLocal->IsNumber()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate, "'domain', 'type', 'protocol' must be an number when calling "
+                 "'socket' syscall")));
+    return;
+  }
+
+  int domain = domainLocal->Int32Value(context).ToChecked();
+  int type = typeLocal->Int32Value(context).ToChecked();
+  int protocol = protocolLocal->Int32Value(context).ToChecked();
+
+  int fd = socket(domain, type, protocol);
+  if (fd == -1) {
+    const char *errmsg = gai_strerror(fd);
+    std::string msg =
+        std::string(
+            "socket creation by calling `socket` syscall failed with msg: ") +
+        errmsg;
+    isolate->ThrowException(Exception::Error(
+        String::NewFromUtf8(isolate, msg.c_str()).ToLocalChecked()));
+    return;
+  }
+
+  args.GetReturnValue().Set(fd);
+}
+
 void getaddrinfoResultAccessor(
     v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Value> &info) {
@@ -68,6 +103,25 @@ void getaddrinfoResultAccessor(
   void *ptr = Local<External>::Cast(self->GetInternalField(0))->Value();
 
   struct addrinfo *addrinfo = static_cast<struct addrinfo *>(ptr);
+
+  if (property
+          ->Equals(context, String::NewFromUtf8Literal(isolate, "ai_family"))
+          .FromJust()) {
+    info.GetReturnValue().Set(addrinfo->ai_family);
+  }
+
+  if (property
+          ->Equals(context, String::NewFromUtf8Literal(isolate, "ai_socktype"))
+          .FromJust()) {
+    info.GetReturnValue().Set(addrinfo->ai_socktype);
+  }
+
+  if (property
+          ->Equals(context, String::NewFromUtf8Literal(isolate, "ai_protocol"))
+          .FromJust()) {
+    info.GetReturnValue().Set(addrinfo->ai_protocol);
+  }
+
   if (property
           ->Equals(context, String::NewFromUtf8Literal(isolate, "ai_addrlen"))
           .FromJust()) {
@@ -171,15 +225,15 @@ void GetAddrInfoSlow(const FunctionCallbackInfo<Value> &args) {
   // resultTmpl->SetNativeDataProperty(
   //     String::NewFromUtf8Literal(isolate, "ai_flags"),
   //     getaddrinfoResultAccessor);
-  // resultTmpl->SetNativeDataProperty(
-  //     String::NewFromUtf8Literal(isolate, "ai_family"),
-  //     getaddrinfoResultAccessor);
-  // resultTmpl->SetNativeDataProperty(
-  //     String::NewFromUtf8Literal(isolate, "ai_socktype"),
-  //     getaddrinfoResultAccessor);
-  // resultTmpl->SetNativeDataProperty(
-  //     String::NewFromUtf8Literal(isolate, "ai_protocol"),
-  //     getaddrinfoResultAccessor);
+  resultTmpl->SetNativeDataProperty(
+      String::NewFromUtf8Literal(isolate, "ai_family"),
+      getaddrinfoResultAccessor);
+  resultTmpl->SetNativeDataProperty(
+      String::NewFromUtf8Literal(isolate, "ai_socktype"),
+      getaddrinfoResultAccessor);
+  resultTmpl->SetNativeDataProperty(
+      String::NewFromUtf8Literal(isolate, "ai_protocol"),
+      getaddrinfoResultAccessor);
 
   // for client only those are needed
   resultTmpl->SetNativeDataProperty(
@@ -220,6 +274,11 @@ void Initialize(Local<ObjectTemplate> globalObjTmpl) {
       FunctionTemplate::New(isolate, SocketSlow);
   consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "socket"),
                       socketFnTmpl);
+
+  // Local<FunctionTemplate> connectFnTmpl =
+  //     FunctionTemplate::New(isolate, SocketSlow);
+  // consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "connect"),
+  //                     connectFnTmpl);
 }
 
 } // namespace done::syscall
