@@ -1,3 +1,4 @@
+#include "v8-array-buffer.h"
 #include "v8-container.h"
 #include "v8-isolate.h"
 #include "v8-object.h"
@@ -12,6 +13,7 @@
 #include <sys/types.h>
 
 using v8::Array;
+using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
 using v8::Exception;
@@ -27,6 +29,49 @@ using v8::String;
 using v8::Value;
 
 namespace done::syscall {
+
+void RecvSlow(const FunctionCallbackInfo<Value> &args) {
+  Isolate *isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  Local<Value> socketfdLocal = args[0].As<Value>();
+  Local<ArrayBuffer> bufferLocalVal = args[1].As<ArrayBuffer>();
+  Local<Value> bufferSizeLocal = args[2].As<Value>();
+  Local<Value> flagsLocal = args[3].As<Value>();
+
+  if (!socketfdLocal->IsNumber() || !bufferSizeLocal->IsNumber() ||
+      !flagsLocal->IsNumber()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate,
+        "'socket_fd', 'buffer_size', 'flags' must be an number when calling "
+        "'recv' syscall")));
+    return;
+  }
+  if (!bufferLocalVal->IsArrayBuffer()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate, "'buffer' must be an ArrayBuffer when calling "
+                 "'recv' syscall")));
+    return;
+  }
+
+  int socketfd = socketfdLocal->Int32Value(context).ToChecked();
+  int bufferSizeLen = bufferSizeLocal->Int32Value(context).ToChecked();
+  int flags = flagsLocal->Int32Value(context).ToChecked();
+  void *bufferPtr = bufferLocalVal->Data();
+  char *buffer = static_cast<char *>(bufferPtr);
+
+  int recv_result = recv(socketfd, buffer, bufferSizeLen, flags);
+  if (recv_result == -1) {
+    const char *errmsg = gai_strerror(recv_result);
+    std::string msg = std::string("connect syscall failed with msg: ") + errmsg;
+
+    isolate->ThrowException(Exception::Error(
+        String::NewFromUtf8(isolate, msg.c_str()).ToLocalChecked()));
+    return;
+  }
+
+  args.GetReturnValue().Set(recv_result);
+}
 
 void ConnectSlow(const FunctionCallbackInfo<Value> &args) {
   Isolate *isolate = args.GetIsolate();
@@ -165,10 +210,10 @@ void GetAddrInfoSlow(const FunctionCallbackInfo<Value> &args) {
   Local<Value> hintsArgs = args[2].As<Value>();
   // Local<Value> resultsArgs = args[3].As<Value>();
 
-  if (!hostArgs->IsString()) {
+  if (!hostArgs->IsString() && !hostArgs->IsNull()) {
     isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
-        isolate,
-        "'host' must be an string when calling 'getaddrinfo' syscall")));
+        isolate, "'host' must be an string or null when calling 'getaddrinfo' "
+                 "syscall")));
     return;
   }
   if (!portArgs->IsString()) {
@@ -195,8 +240,6 @@ void GetAddrInfoSlow(const FunctionCallbackInfo<Value> &args) {
   Local<String> hostLocal = hostArgs->ToString(context).ToLocalChecked();
   Local<String> portLocal = portArgs->ToString(context).ToLocalChecked();
   Local<Object> hintsLocal = hintsArgs->ToObject(context).ToLocalChecked();
-  // Local<Object> resultsLocal =
-  // resultsArgs->ToObject(context).ToLocalChecked();
 
   String::Utf8Value hostUtf8(context->GetIsolate(), hostLocal);
   String::Utf8Value portUtf8(context->GetIsolate(), portLocal);
@@ -217,10 +260,15 @@ void GetAddrInfoSlow(const FunctionCallbackInfo<Value> &args) {
           String::NewFromUtf8Literal(isolate, "SOCK_STREAM"))) {
     hints.ai_socktype = SOCK_STREAM;
   }
+  hints.ai_flags = AI_PASSIVE;
 
   struct addrinfo *result;
-
-  int errCode = getaddrinfo(*hostUtf8, *portUtf8, &hints, &result);
+  int errCode;
+  if (hostArgs->IsString()) {
+    errCode = getaddrinfo(*hostUtf8, *portUtf8, &hints, &result);
+  } else {
+    errCode = getaddrinfo(NULL, *portUtf8, &hints, &result);
+  }
   if (errCode != 0) {
     const char *errmsg = gai_strerror(errCode);
     std::string msg =
@@ -246,7 +294,6 @@ void GetAddrInfoSlow(const FunctionCallbackInfo<Value> &args) {
       String::NewFromUtf8Literal(isolate, "ai_protocol"),
       getaddrinfoResultAccessor);
 
-  // for client only those are needed
   resultTmpl->SetNativeDataProperty(
       String::NewFromUtf8Literal(isolate, "ai_addrlen"),
       getaddrinfoResultAccessor);
@@ -290,6 +337,10 @@ void Initialize(Local<ObjectTemplate> globalObjTmpl) {
       FunctionTemplate::New(isolate, ConnectSlow);
   consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "connect"),
                       connectFnTmpl);
+
+  Local<FunctionTemplate> recvFnTmpl = FunctionTemplate::New(isolate, RecvSlow);
+  consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "recv"),
+                      recvFnTmpl);
 }
 
 } // namespace done::syscall
