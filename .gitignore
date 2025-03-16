@@ -31,3 +31,4 @@ lib/apis.all.d.ts
 # my
 compile_commands.json
 .cache
+/out
