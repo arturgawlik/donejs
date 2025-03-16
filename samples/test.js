@@ -1,5 +1,6 @@
 try {
-    const resGetAddrInfo = globalThis.done.syscall.getaddrinfo(null, "5001", { ai_family: 'AF_UNSPEC', ai_socktype: 'SOCK_STREAM' });
+    const resGetAddrInfo = {};
+    globalThis.done.syscall.getaddrinfo(null, "5001", { ai_family: 'AF_UNSPEC', ai_socktype: 'SOCK_STREAM' }, resGetAddrInfo);
     const socketFd = globalThis.done.syscall.socket(resGetAddrInfo.ai_family, resGetAddrInfo.ai_socktype, resGetAddrInfo.ai_protocol);
     const connectRes = globalThis.done.syscall.connect(socketFd, resGetAddrInfo.ai_addr, resGetAddrInfo.ai_addrlen);
 
