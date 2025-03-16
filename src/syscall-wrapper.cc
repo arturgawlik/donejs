@@ -1,11 +1,15 @@
 #include "v8-array-buffer.h"
 #include "v8-container.h"
+#include "v8-exception.h"
+#include "v8-function-callback.h"
 #include "v8-isolate.h"
 #include "v8-object.h"
 #include "v8-primitive.h"
+#include "v8-value.h"
 #include <netdb.h>
 #include <string>
 #include <sys/socket.h>
+#include <unistd.h>
 #include <v8.h>
 
 #include <netdb.h>
@@ -20,6 +24,7 @@ using v8::Exception;
 using v8::External;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Int32;
 using v8::Isolate;
 using v8::Local;
 using v8::Number;
@@ -29,6 +34,29 @@ using v8::String;
 using v8::Value;
 
 namespace done::syscall {
+
+void CloseSlow(const FunctionCallbackInfo<Value> &args) {
+  Isolate *isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  if (!args[0]->IsInt32()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate,
+        "'socket_fd' must be an number when calling 'close' syscall.")));
+  }
+
+  int socketFd = args[0]->Int32Value(context).FromJust();
+  int closeResCode = close(socketFd);
+  if (closeResCode == -1) {
+    const char *errmsg = gai_strerror(closeResCode);
+    std::string msg = std::string("connect syscall failed with msg: ") + errmsg;
+
+    isolate->ThrowException(Exception::Error(
+        String::NewFromUtf8(isolate, msg.c_str()).ToLocalChecked()));
+  }
+
+  args.GetReturnValue().Set(closeResCode);
+}
 
 void RecvSlow(const FunctionCallbackInfo<Value> &args) {
   Isolate *isolate = args.GetIsolate();
@@ -341,6 +369,11 @@ void Initialize(Local<ObjectTemplate> globalObjTmpl) {
   Local<FunctionTemplate> recvFnTmpl = FunctionTemplate::New(isolate, RecvSlow);
   consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "recv"),
                       recvFnTmpl);
+
+  Local<FunctionTemplate> closeFnTmpl =
+      FunctionTemplate::New(isolate, CloseSlow);
+  consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "close"),
+                      closeFnTmpl);
 }
 
 } // namespace done::syscall
