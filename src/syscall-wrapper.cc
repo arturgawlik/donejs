@@ -339,7 +339,7 @@ void GetAddrInfoSlow(const FunctionCallbackInfo<Value> &args) {
       resultTmpl->NewInstance(context).ToLocalChecked();
   hostentLocal->SetInternalField(0, External::New(isolate, result));
 
-  resultsLocal->SetPrototype(context, hostentLocal.As<Value>()).ToChecked();
+  resultsLocal->SetPrototype(context, hostentLocal).ToChecked();
 }
 
 void Initialize(Local<ObjectTemplate> globalObjTmpl) {
