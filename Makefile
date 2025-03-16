@@ -50,6 +50,9 @@ fetch.o: src/fetch.cc## compile the fetch.cc object file
 process.o: src/process.cc## compile the process.cc object file
 	$(CXX) ${CCARGS} ${OPT} -DRUNTIME='"${RUNTIME}"' -DVERSION='"${VERSION}"' -I./v8 -I./v8/include -I./src ${WARN} ${V8_FLAGS} src/process.cc
 
+text-decoder.o: src/text-decoder.cc## compile the text-decoder.cc object file
+	$(CXX) ${CCARGS} ${OPT} -DRUNTIME='"${RUNTIME}"' -DVERSION='"${VERSION}"' -I./v8 -I./v8/include -I./src ${WARN} ${V8_FLAGS} src/text-decoder.cc
+
 module.o: src/module.cc## compile the module.cc object file
 	$(CXX) ${CCARGS} ${OPT} -DRUNTIME='"${RUNTIME}"' -DVERSION='"${VERSION}"' -I./v8 -I./v8/include -I./src ${WARN} ${V8_FLAGS} src/module.cc
 
@@ -57,9 +60,9 @@ module.o: src/module.cc## compile the module.cc object file
 ${RUNTIME}.o: ## compile runtime into an object file
 	$(CXX) ${CCARGS} ${OPT} -DRUNTIME='"${RUNTIME}"' -DVERSION='"${VERSION}"' ${V8_FLAGS} -I./v8 -I./v8/include -I./src ${WARN} ${RUNTIME}.cc
 
-${RUNTIME}: v8/include v8/libv8_monolith.a main.o ${RUNTIME}.o console.o syscall-wrapper.o fetch.o process.o module.o ## link the runtime for linux/macos
+${RUNTIME}: v8/include v8/libv8_monolith.a main.o ${RUNTIME}.o console.o syscall-wrapper.o fetch.o process.o text-decoder.o module.o ## link the runtime for linux/macos
 	@echo building ${RUNTIME} for ${os} on ${ARCH}
-	$(LINK) $(LARGS) ${OPT} main.o ${RUNTIME}.o console.o syscall-wrapper.o fetch.o process.o module.o  -o ${TARGET} -L"./v8" -lv8_monolith -L"./src" ${LIB_DIRS}
+	$(LINK) $(LARGS) ${OPT} main.o ${RUNTIME}.o console.o syscall-wrapper.o fetch.o process.o text-decoder.o module.o  -o ${TARGET} -L"./v8" -lv8_monolith -L"./src" ${LIB_DIRS}
 
 install:
 	mkdir -p ${HOME}/.huf/bin

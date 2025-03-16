@@ -7,7 +7,6 @@ try {
     const buffer = new ArrayBuffer(bufferSize);
     const recvConnect = globalThis.done.syscall.recv(resSocket, buffer, bufferSize, 0);
 
-    // TODO: `TextDecoder` needs to be implemented in done.js side because it's not implemented in V8
     const decoder = new TextDecoder();
     const decodedText = decoder.decode(buffer);
 
