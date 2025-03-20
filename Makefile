@@ -1,6 +1,6 @@
-CC=clang
-CXX=clang++
-LINK=clang++
+CC=ccache clang
+CXX=ccache clang++
+LINK=ccache clang++
 LARGS=-rdynamic -pthread -static-libstdc++ -v
 CCARGS=-std=c++23 -c -fno-omit-frame-pointer -fno-rtti -fno-exceptions -g
 CARGS=-c -fno-omit-frame-pointer -g
