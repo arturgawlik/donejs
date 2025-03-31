@@ -6,6 +6,7 @@
 #include "syscall-wrapper.h"
 #include "text-decoder.h"
 
+#include "v8-initialization.h"
 #include "v8.h"
 
 using v8::Context;
@@ -35,6 +36,7 @@ Local<ObjectTemplate> initializeDoneBuildins() {
 
 int done::Run(int argc, char **argv) {
   // Initialize V8.
+  V8::SetFlagsFromCommandLine(&argc, argv, true);
   V8::InitializeICUDefaultLocation(argv[0]);
   V8::InitializeExternalStartupData(argv[0]);
   std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
