@@ -1,3 +1,6 @@
+#include "v8-exception.h"
+#include "v8-primitive.h"
+#include "v8-script.h"
 #include "v8.h"
 
 #include <cstdio>
@@ -17,6 +20,14 @@ using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::String;
 using v8::Value;
+
+#define ANSI_COLOR_RED "\x1b[31m"
+// #define ANSI_COLOR_GREEN   "\x1b[32m"
+// #define ANSI_COLOR_YELLOW  "\x1b[33m"
+// #define ANSI_COLOR_BLUE    "\x1b[34m"
+// #define ANSI_COLOR_MAGENTA "\x1b[35m"
+// #define ANSI_COLOR_CYAN    "\x1b[36m"
+#define ANSI_COLOR_RESET "\x1b[0m"
 
 namespace done::module {
 
@@ -79,9 +90,18 @@ MaybeLocal<Module> instantiate_module(Local<Context> context,
 }
 
 int run_js(Local<Context> context, const char *jsFilePath) {
+  Isolate *isolate = Isolate::GetCurrent();
   Local<Module> module =
       instantiate_module(context, jsFilePath).ToLocalChecked();
+
   module->Evaluate(context).ToLocalChecked();
+
+  Module::Status status = module->GetStatus();
+  if (status == Module::Status::kErrored) {
+    Local<Value> exception = module->GetException();
+    v8::String::Utf8Value exceptionStr(isolate, exception);
+    printf(ANSI_COLOR_RED "%s\n" ANSI_COLOR_RESET, *exceptionStr);
+  }
 
   return 0;
 }
