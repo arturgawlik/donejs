@@ -8,3 +8,4 @@ globalThis.process = doneJsProcess;
 globalThis.exit = doneJsProcess.exit;
 globalThis.TextDecoder = doneJsTextDecoder
 globalThis.fetch = doneJsFetch;
+
