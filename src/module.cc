@@ -1,3 +1,4 @@
+#include "./internal/util.h"
 #include "v8-exception.h"
 #include "v8-isolate.h"
 #include "v8-primitive.h"
@@ -21,14 +22,6 @@ using v8::ScriptCompiler;
 using v8::ScriptOrigin;
 using v8::String;
 using v8::Value;
-
-#define ANSI_COLOR_RED "\x1b[31m"
-// #define ANSI_COLOR_GREEN   "\x1b[32m"
-// #define ANSI_COLOR_YELLOW  "\x1b[33m"
-// #define ANSI_COLOR_BLUE    "\x1b[34m"
-// #define ANSI_COLOR_MAGENTA "\x1b[35m"
-// #define ANSI_COLOR_CYAN    "\x1b[36m"
-#define ANSI_COLOR_RESET "\x1b[0m"
 
 namespace done::module {
 
@@ -98,9 +91,9 @@ MaybeLocal<Module> instantiate_module(Local<Context> context,
     if (moduleStatus == Module::Status::kErrored) {
       Local<Value> exception = module->GetException();
       v8::String::Utf8Value exceptionStr(isolate, exception);
-      printf(ANSI_COLOR_RED
-             "Module instantiation failed: %s\n" ANSI_COLOR_RESET,
-             *exceptionStr);
+      char *msg;
+      asprintf(&msg, "Module instantiation failed: %s\n", *exceptionStr);
+      done::internal::util::PrintfError(msg);
     }
   }
 
@@ -118,7 +111,9 @@ int run_js(Local<Context> context, const char *jsFilePath) {
   if (status == Module::Status::kErrored) {
     Local<Value> exception = module->GetException();
     v8::String::Utf8Value exceptionStr(isolate, exception);
-    printf(ANSI_COLOR_RED "%s\n" ANSI_COLOR_RESET, *exceptionStr);
+    char *msg;
+    asprintf(&msg, "%s\n", *exceptionStr);
+    done::internal::util::PrintfError(msg);
   }
 
   return 0;
