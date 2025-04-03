@@ -1,4 +1,5 @@
 #include "v8-exception.h"
+#include "v8-isolate.h"
 #include "v8-primitive.h"
 #include "v8-script.h"
 #include "v8.h"
@@ -70,21 +71,38 @@ MaybeLocal<Module> call_resolve(Local<Context> context, Local<String> specifier,
                                 Local<Module> referrer) {
 
   // Get module name from specifier (given name in import args)
-  String::Utf8Value str(context->GetIsolate(), specifier);
+  String::Utf8Value utf8(context->GetIsolate(), specifier);
+  string str = *utf8;
+
+  // build in modules should be imported with "done:" prefix
+  if (str.contains("done:")) {
+    str.replace(0, sizeof("done:") - 1, "./lib/");
+  }
 
   // Return unchecked module
-  return load_module(*str, read_file(*str));
+  return load_module(str, read_file(str));
 }
 
 MaybeLocal<Module> instantiate_module(Local<Context> context,
                                       const char *jsFilePath) {
+  Isolate *isolate = Isolate::GetCurrent();
+
   std::string jsFileContent = read_file(jsFilePath);
   if (!jsFileContent.length()) {
     return MaybeLocal<Module>();
   }
 
   Local<Module> module = load_module(jsFilePath, jsFileContent);
-  module->InstantiateModule(context, call_resolve).ToChecked();
+  if (!module->InstantiateModule(context, call_resolve).IsJust()) {
+    Module::Status moduleStatus = module->GetStatus();
+    if (moduleStatus == Module::Status::kErrored) {
+      Local<Value> exception = module->GetException();
+      v8::String::Utf8Value exceptionStr(isolate, exception);
+      printf(ANSI_COLOR_RED
+             "Module instantiation failed: %s\n" ANSI_COLOR_RESET,
+             *exceptionStr);
+    }
+  }
 
   return module;
 }

@@ -60,11 +60,13 @@ text-decoder.o: ${OUT} src/text-decoder.cc## compile the text-decoder.cc object 
 module.o: ${OUT} src/module.cc## compile the module.cc object file
 	$(CXX) ${CCARGS} ${OPT} -DRUNTIME='"${RUNTIME}"' -DVERSION='"${VERSION}"' -I./v8 -I./v8/include -I./src ${WARN} ${V8_FLAGS} src/module.cc -o ${OUT}/module.o
 
+jsfiles:
+	cp -r ./lib/ ${OUT}/
 
 ${RUNTIME}.o: ${OUT} ## compile runtime into an object file
 	$(CXX) ${CCARGS} ${OPT} -DRUNTIME='"${RUNTIME}"' -DVERSION='"${VERSION}"' ${V8_FLAGS} -I./v8 -I./v8/include -I./src ${WARN} ${RUNTIME}.cc -o ${OUT}/${RUNTIME}.o
 
-${RUNTIME}: ${OUT} v8/include v8/libv8_monolith.a main.o ${RUNTIME}.o console.o syscall-wrapper.o fetch.o process.o text-decoder.o module.o ## link the runtime for linux/macos
+${RUNTIME}: ${OUT} jsfiles v8/include v8/libv8_monolith.a main.o ${RUNTIME}.o console.o syscall-wrapper.o fetch.o process.o text-decoder.o module.o ## link the runtime for linux/macos
 	@echo building ${RUNTIME} for ${os} on ${ARCH}
 	$(LINK) $(LARGS) ${OPT} ${OUT}/main.o ${OUT}/${RUNTIME}.o ${OUT}/console.o ${OUT}/syscall-wrapper.o ${OUT}/fetch.o ${OUT}/process.o ${OUT}/text-decoder.o ${OUT}/module.o  -o ${OUT}/${TARGET} -L"./v8" -lv8_monolith -L"./src" ${LIB_DIRS}
 
@@ -73,7 +75,7 @@ install:
 	cp huf ${HOME}/.huf/bin/
 
 clean:
-	rm -f ./out/*
+	rm -fr ./out/*
 
 cleanall:
 	$(MAKE) clean

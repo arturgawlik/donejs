@@ -1,3 +1,3 @@
-import { equal } from "/home/artur-gawlik/git/donejs/lib/assert.js";
+import { equal } from "done:assert.js";
 
 equal(1, 2);
