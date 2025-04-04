@@ -1,3 +1,7 @@
-import { equal } from "done:assert.js";
+// import { equal } from "done:assert.js";
+// equal(1, 2);
 
-equal(1, 2);
+for (const arg of process.argv) {
+    console.log(arg);
+}
+

@@ -7,12 +7,14 @@
 #include "text-decoder.h"
 
 #include "v8-initialization.h"
+#include "v8-object.h"
 #include "v8.h"
 
 using v8::Context;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::Object;
 using v8::ObjectTemplate;
 using v8::String;
 using v8::V8;
@@ -26,12 +28,17 @@ Local<ObjectTemplate> initializeDoneBuildins() {
                      doneGlobalObjTmpl);
 
   done::console::Initialize(doneGlobalObjTmpl);
-  done::process::Initialize(doneGlobalObjTmpl);
   done::fetch::Initialize(doneGlobalObjTmpl);
   done::syscall::Initialize(doneGlobalObjTmpl);
   done::textDecoder::Initialize(doneGlobalObjTmpl);
 
   return globalObjTmpl;
+}
+
+void initializeDoneBuildinsAfterContextCreation(Local<Object> globalObj,
+                                                int argc, char **argv) {
+
+  done::process::Initialize(globalObj, argc, argv);
 }
 
 int done::Run(int argc, char **argv) {
@@ -63,6 +70,13 @@ int done::Run(int argc, char **argv) {
     // Enter the context for compiling and running the hello world script.
     Context::Scope context_scope(context);
     {
+      Local<Object> doneObj =
+          context->Global()
+              ->Get(context, String::NewFromUtf8Literal(isolate, "done"))
+              .ToLocalChecked()
+              .As<Object>();
+      initializeDoneBuildinsAfterContextCreation(doneObj, argc, argv);
+
       done::module::InitDynamicImports();
 
       const char *doneJsFilePath = "./done.js";
