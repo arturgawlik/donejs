@@ -11,5 +11,5 @@ globalThis.exit = doneProcess.exit;
 globalThis.TextDecoder = doneTextDecoder
 globalThis.fetch = doneFetch;
 
-globalThis.done = {};
+// TODO: maybe make done obj (and other build in?) stuff not overridable?
 globalThis.done.interpretFlags = doneInterpretFlags;

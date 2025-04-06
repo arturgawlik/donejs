@@ -6,17 +6,22 @@
 #include "syscall-wrapper.h"
 #include "text-decoder.h"
 
+#include "v8-function.h"
 #include "v8-initialization.h"
+#include "v8-local-handle.h"
 #include "v8-object.h"
 #include "v8.h"
+#include <string>
 
 using v8::Context;
+using v8::Function;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::String;
+using v8::Undefined;
 using v8::V8;
 
 Local<ObjectTemplate> initializeDoneBuildins() {
@@ -78,17 +83,36 @@ int done::Run(int argc, char **argv) {
               ->Get(context, String::NewFromUtf8Literal(isolate, "done"))
               .ToLocalChecked()
               .As<Object>();
+
       initializeDoneBuildinsAfterContextCreation(doneObj, argc, argv);
 
       done::module::InitDynamicImports();
 
-      const char *doneJsFilePath = "./done.js";
-      int res = done::module::Run(doneJsFilePath);
+      const char *doneJsBuildInsModule = "./done.js";
+      int res = done::module::Run(doneJsBuildInsModule);
       if (res)
         return res;
 
-      const char *indexJsFilePath = argv[1];
-      res = done::module::Run(indexJsFilePath);
+      // run js land function to retrieve module to run
+      Local<Function> intepretArgvFn =
+          doneObj
+              ->Get(context,
+                    String::NewFromUtf8Literal(isolate, "interpretFlags"))
+              .ToLocalChecked()
+              .As<Function>();
+      Local<Object> interpretedArgvResult =
+          intepretArgvFn->Call(context, context->Global(), 0, nullptr)
+              .ToLocalChecked()
+              .As<Object>();
+      Local<String> moduleToRun =
+          interpretedArgvResult
+              ->Get(context, String::NewFromUtf8Literal(isolate, "moduleToRun"))
+              .ToLocalChecked()
+              .As<String>();
+      String::Utf8Value moduleToRunUtf8(isolate, moduleToRun);
+      std::string indexJsFilePath = *moduleToRunUtf8;
+
+      res = done::module::Run(indexJsFilePath.c_str());
       if (res)
         return res;
     }
