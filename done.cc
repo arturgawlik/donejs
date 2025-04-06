@@ -112,9 +112,12 @@ int done::Run(int argc, char **argv) {
       String::Utf8Value moduleToRunUtf8(isolate, moduleToRun);
       std::string indexJsFilePath = *moduleToRunUtf8;
 
-      res = done::module::Run(indexJsFilePath.c_str());
-      if (res)
-        return res;
+      if (!moduleToRun->IsUndefined()) {
+        // if there is no module to run just exit
+        res = done::module::Run(indexJsFilePath.c_str());
+        if (res)
+          return res;
+      }
     }
   }
 
