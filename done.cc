@@ -35,9 +35,12 @@ Local<ObjectTemplate> initializeDoneBuildins() {
   return globalObjTmpl;
 }
 
+/*
+  Modules that requires `v8::Context` to exist when are initialized are started
+  in this function.
+*/
 void initializeDoneBuildinsAfterContextCreation(Local<Object> globalObj,
                                                 int argc, char **argv) {
-
   done::process::Initialize(globalObj, argc, argv);
 }
 

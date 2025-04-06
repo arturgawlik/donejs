@@ -25,6 +25,18 @@ using v8::Value;
 
 namespace done::module {
 
+void debug_log_status(const char *logPrefix, Local<Module> module) {
+  const char *enumsStr[] = {"kUninstantiated", "kInstantiating",
+                            "kInstantiated",   "kEvaluating",
+                            "kEvaluated",      "kErrored"};
+
+  auto status = module->GetStatus();
+  auto statusStr = enumsStr[status];
+  char *msg;
+  asprintf(&msg, "(%s) module status %s", logPrefix, statusStr);
+  done::internal::util::PrintfDebug(msg);
+}
+
 std::string read_file(string path) {
   std::string fileContent;
   std::string tmp;
@@ -56,6 +68,8 @@ Local<Module> load_module(string jsFileName, string jsFileContent) {
   Local<Module> compiledModule =
       ScriptCompiler::CompileModule(isolate, source).ToLocalChecked();
 
+  // debug
+  // debug_log_status("after load_module", compiledModule);
   return compiledModule;
 }
 
@@ -86,7 +100,7 @@ MaybeLocal<Module> instantiate_module(Local<Context> context,
   }
 
   Local<Module> module = load_module(jsFilePath, jsFileContent);
-  if (!module->InstantiateModule(context, call_resolve).IsJust()) {
+  if (module->InstantiateModule(context, call_resolve).IsNothing()) {
     Module::Status moduleStatus = module->GetStatus();
     if (moduleStatus == Module::Status::kErrored) {
       Local<Value> exception = module->GetException();
@@ -97,6 +111,8 @@ MaybeLocal<Module> instantiate_module(Local<Context> context,
     }
   }
 
+  // debug
+  // debug_log_status("after instantiate_module: ", module);
   return module;
 }
 
@@ -105,17 +121,19 @@ int run_js(Local<Context> context, const char *jsFilePath) {
   Local<Module> module =
       instantiate_module(context, jsFilePath).ToLocalChecked();
 
-  module->Evaluate(context).ToLocalChecked();
-
-  Module::Status status = module->GetStatus();
-  if (status == Module::Status::kErrored) {
-    Local<Value> exception = module->GetException();
-    v8::String::Utf8Value exceptionStr(isolate, exception);
-    char *msg;
-    asprintf(&msg, "%s\n", *exceptionStr);
-    done::internal::util::PrintfError(msg);
+  if (!module->Evaluate(context).IsEmpty()) {
+    Module::Status status = module->GetStatus();
+    if (status == Module::Status::kErrored) {
+      Local<Value> exception = module->GetException();
+      v8::String::Utf8Value exceptionStr(isolate, exception);
+      char *msg;
+      asprintf(&msg, "%s\n", *exceptionStr);
+      done::internal::util::PrintfError(msg);
+    }
   }
 
+  // debug
+  // debug_log_status("after run_js: ", module);
   return 0;
 }
 

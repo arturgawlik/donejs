@@ -2,6 +2,7 @@ import doneConsole from "done:console.js";
 import doneProcess from "done:process.js";
 import doneTextDecoder from "done:text-decoder.js";
 import doneFetch from "done:fetch.js";
+import "done:command.js";
 
 globalThis.console = doneConsole;
 globalThis.process = doneProcess;
