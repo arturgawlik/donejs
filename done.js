@@ -3,7 +3,8 @@ import doneProcess from "done:process.js";
 import doneTextDecoder from "done:text-decoder.js";
 import doneFetch from "done:fetch.js";
 import doneInterpretFlags from "done:argv.js";
-import "done:command.js";
+
+import "done:special-mode-dispatcher.js";
 
 globalThis.console = doneConsole;
 globalThis.process = doneProcess;
