@@ -6,6 +6,9 @@
 #include "v8-object.h"
 #include "v8-primitive.h"
 #include "v8-value.h"
+#include <cstddef>
+#include <cstdlib>
+#include <glob.h>
 #include <netdb.h>
 #include <string>
 #include <sys/socket.h>
@@ -34,6 +37,74 @@ using v8::String;
 using v8::Value;
 
 namespace done::syscall {
+
+void Get_glob_t(v8::Local<v8::Name> property,
+                const v8::PropertyCallbackInfo<v8::Value> &info) {
+  Isolate *isolate = Isolate::GetCurrent();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  Local<Object> self = info.Holder();
+  void *ptr = Local<External>::Cast(self->GetInternalField(0))->Value();
+
+  glob_t *globbuf = static_cast<glob_t *>(ptr);
+
+  if (property->Equals(context, String::NewFromUtf8Literal(isolate, "gl_pathc"))
+          .FromJust()) {
+    info.GetReturnValue().Set(globbuf->gl_pathc);
+  }
+
+  if (property->Equals(context, String::NewFromUtf8Literal(isolate, "gl_pathv"))
+          .FromJust()) {
+    // TODO
+    // info.GetReturnValue().Set(globbuf->gl_pathv);
+  }
+}
+
+void GlobSlow(const FunctionCallbackInfo<Value> &args) {
+  Isolate *isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  if (!args[0]->IsString()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate, "'pattern' must be an string when calling 'glob' syscall.")));
+  }
+  if (!args[1]->IsNumber()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate, "'flags' must be an number when calling 'glob' syscall.")));
+  }
+  if (!args[2]->IsNull()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate, "'errfunc' must be an null when calling 'glob' syscall. Other "
+                 "values are not supported for now.")));
+  }
+  if (!args[3]->IsObject()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate, "'pglob' must be an object when calling 'glob' syscall.")));
+  }
+
+  Local<String> pattern_js = args[0].As<String>();
+  Local<Number> flags_js = args[1].As<Number>();
+  Local<Object> pglob_js = args[3].As<Object>();
+
+  String::Utf8Value pattern_js_utf8(isolate, pattern_js);
+  char *pattern = *pattern_js_utf8;
+  int flags = flags_js->ToInt32(context).ToLocalChecked()->Value();
+  glob_t globbuf;
+
+  glob(pattern, flags, NULL, &globbuf);
+  Local<ObjectTemplate> globbufPrototypeTmpl = ObjectTemplate::New(isolate);
+  globbufPrototypeTmpl->SetInternalFieldCount(1);
+  globbufPrototypeTmpl->SetNativeDataProperty(
+      String::NewFromUtf8Literal(isolate, "gl_pathc"), Get_glob_t);
+  globbufPrototypeTmpl->SetNativeDataProperty(
+      String::NewFromUtf8Literal(isolate, "gl_pathv"), Get_glob_t);
+
+  Local<Object> globbufPrototype_js =
+      globbufPrototypeTmpl->NewInstance(context).ToLocalChecked();
+  globbufPrototype_js->SetInternalField(0, External::New(isolate, &globbuf));
+
+  pglob_js->SetPrototype(context, globbufPrototype_js).ToChecked();
+}
 
 void CloseSlow(const FunctionCallbackInfo<Value> &args) {
   Isolate *isolate = args.GetIsolate();
@@ -349,6 +420,7 @@ void Initialize(Local<ObjectTemplate> globalObjTmpl) {
   globalObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "syscall"),
                      consoleObjTmpl);
 
+  // NETWORK
   Local<FunctionTemplate> gethostbynameFnTmpl =
       FunctionTemplate::New(isolate, GetAddrInfoSlow);
   consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "getaddrinfo"),
@@ -372,6 +444,11 @@ void Initialize(Local<ObjectTemplate> globalObjTmpl) {
       FunctionTemplate::New(isolate, CloseSlow);
   consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "close"),
                       closeFnTmpl);
+
+  // FILE SYSTEM
+  Local<FunctionTemplate> globFnTmpl = FunctionTemplate::New(isolate, GlobSlow);
+  consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "glob"),
+                      globFnTmpl);
 }
 
 } // namespace done::syscall
