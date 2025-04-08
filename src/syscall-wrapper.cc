@@ -89,9 +89,11 @@ void GlobSlow(const FunctionCallbackInfo<Value> &args) {
   String::Utf8Value pattern_js_utf8(isolate, pattern_js);
   char *pattern = *pattern_js_utf8;
   int flags = flags_js->ToInt32(context).ToLocalChecked()->Value();
-  glob_t globbuf;
 
-  glob(pattern, flags, NULL, &globbuf);
+  // TODO: delete it to remove memory leak
+  glob_t *globbuf = new glob_t();
+
+  glob(pattern, flags, NULL, globbuf);
   Local<ObjectTemplate> globbufPrototypeTmpl = ObjectTemplate::New(isolate);
   globbufPrototypeTmpl->SetInternalFieldCount(1);
   globbufPrototypeTmpl->SetNativeDataProperty(
@@ -101,7 +103,7 @@ void GlobSlow(const FunctionCallbackInfo<Value> &args) {
 
   Local<Object> globbufPrototype_js =
       globbufPrototypeTmpl->NewInstance(context).ToLocalChecked();
-  globbufPrototype_js->SetInternalField(0, External::New(isolate, &globbuf));
+  globbufPrototype_js->SetInternalField(0, External::New(isolate, globbuf));
 
   pglob_js->SetPrototype(context, globbufPrototype_js).ToChecked();
 }
