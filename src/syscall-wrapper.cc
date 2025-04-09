@@ -55,8 +55,13 @@ void Get_glob_t(v8::Local<v8::Name> property,
 
   if (property->Equals(context, String::NewFromUtf8Literal(isolate, "gl_pathv"))
           .FromJust()) {
-    // TODO
-    // info.GetReturnValue().Set(globbuf->gl_pathv);
+    Local<Array> gl_pathv_array_js = Array::New(isolate, globbuf->gl_pathc);
+    for (ulong i = 0; i < globbuf->gl_pathc; i++) {
+      Local<String> gl_pathv_js =
+          String::NewFromUtf8(isolate, globbuf->gl_pathv[i]).ToLocalChecked();
+      gl_pathv_array_js->Set(context, i, gl_pathv_js).ToChecked();
+    }
+    info.GetReturnValue().Set(gl_pathv_array_js);
   }
 }
 
