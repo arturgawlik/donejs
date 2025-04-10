@@ -23,4 +23,5 @@ $ ./done ./samples/test.js
   - [x] `recv`
   - [x] `close`
   - [x] `glob`
+  - [x] `posix_spawn`
 - [ ] basic `fetch`

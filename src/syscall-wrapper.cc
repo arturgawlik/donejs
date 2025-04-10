@@ -3,10 +3,13 @@
 #include "v8-exception.h"
 #include "v8-function-callback.h"
 #include "v8-isolate.h"
+#include "v8-local-handle.h"
 #include "v8-object.h"
 #include "v8-primitive.h"
+#include "v8-typed-array.h"
 #include "v8-value.h"
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <glob.h>
 #include <netdb.h>
@@ -16,8 +19,10 @@
 #include <v8.h>
 
 #include <netdb.h>
+#include <spawn.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <vector>
 
 using v8::Array;
 using v8::ArrayBuffer;
@@ -28,6 +33,7 @@ using v8::External;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Int32;
+using v8::Int32Array;
 using v8::Isolate;
 using v8::Local;
 using v8::Number;
@@ -37,6 +43,82 @@ using v8::String;
 using v8::Value;
 
 namespace done::syscall {
+
+void PosixSpawn(const FunctionCallbackInfo<Value> &args) {
+  Isolate *isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  if (!args[0]->IsInt32Array() || args[0].As<v8::Int32Array>()->Length() != 1) {
+    // `posix_spawn` expects as first argument pointer to int that will be set
+    // with pid of newly created process so here we are expecting ArrayBuffer
+    // where child process pid will be set.
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate, "'pid' must be an IsInt32Array buffer when calling "
+                 "'posix_spawn' syscall.")));
+  }
+  if (!args[1]->IsString()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate,
+        "'path' must be an string when calling 'posix_spawn' syscall.")));
+  }
+  if (!args[2]->IsNull()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate, "'file_actions' must be an null when calling 'posix_spawn' "
+                 "syscall. Other "
+                 "values are not supported for now.")));
+  }
+  if (!args[3]->IsNull()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate, "'attrp' must be an null when calling 'posix_spawn' "
+                 "syscall. Other "
+                 "values are not supported for now.")));
+  }
+  if (!args[4]->IsArray()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate,
+        "'argv' must be an string when calling 'posix_spawn' syscall.")));
+  }
+  Local<Array> argv_js = args[4].As<Array>();
+  for (u_int32_t i = 0; i < argv_js->Length(); i++) {
+    if (!argv_js->Get(context, i).ToLocalChecked()->IsString()) {
+      isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+          isolate,
+          "'argv' all elements must be an string when calling 'posix_spawn' "
+          "syscall.")));
+    }
+  }
+
+  if (!args[5]->IsNull()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate, "'envp' must be an null when calling 'posix_spawn' "
+                 "syscall. Other "
+                 "values are not supported for now.")));
+  }
+
+  Local<Int32Array> pid_js = args[0].As<Int32Array>();
+  Local<String> path_js = args[1].As<String>();
+
+  String::Utf8Value path_js_utf8(isolate, path_js);
+  char *path = *path_js_utf8;
+
+  std::vector<char *> child_argv_vector;
+  for (u_int32_t i = 0; i < argv_js->Length(); i++) {
+    Local<String> argv_js_current =
+        argv_js->Get(context, i).ToLocalChecked().As<String>();
+    String::Utf8Value argv_js_current_utf8(isolate, argv_js_current);
+    char *argv_current = strdup(*argv_js_current_utf8);
+    child_argv_vector.push_back(argv_current);
+  }
+
+  char **envp;
+  char **child_argv = child_argv_vector.data();
+  pid_t child_pid = 0;
+
+  int res = posix_spawn(&child_pid, path, NULL, NULL, child_argv, envp);
+
+  pid_js->Set(context, 0, Int32::New(isolate, child_pid)).ToChecked();
+  args.GetReturnValue().Set(res);
+}
 
 void Get_glob_t(v8::Local<v8::Name> property,
                 const v8::PropertyCallbackInfo<v8::Value> &info) {
@@ -456,6 +538,12 @@ void Initialize(Local<ObjectTemplate> globalObjTmpl) {
   Local<FunctionTemplate> globFnTmpl = FunctionTemplate::New(isolate, GlobSlow);
   consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "glob"),
                       globFnTmpl);
+
+  // PROCESS
+  Local<FunctionTemplate> posix_spawnFnTmpl =
+      FunctionTemplate::New(isolate, PosixSpawn);
+  consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "posix_spawn"),
+                      posix_spawnFnTmpl);
 }
 
 } // namespace done::syscall
