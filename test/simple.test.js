@@ -1,7 +1,3 @@
-const globbuf = {};
-done.syscall.glob("./**/*.test.js", 1 << 3 /* GLOB_DOOFFS */, null, globbuf);
-console.log(globbuf.gl_pathc);
+import { equal } from "done:assert.js";
 
-for (const gl_pathv of globbuf.gl_pathv) {
-    console.log(gl_pathv);
-}
+equal(1, 2);

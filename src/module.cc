@@ -129,6 +129,7 @@ int run_js(Local<Context> context, const char *jsFilePath) {
       char *msg;
       asprintf(&msg, "%s\n", *exceptionStr);
       done::internal::util::PrintfError(msg);
+      return 1;
     }
   }
 

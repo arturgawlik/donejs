@@ -101,20 +101,28 @@ void PosixSpawn(const FunctionCallbackInfo<Value> &args) {
   String::Utf8Value path_js_utf8(isolate, path_js);
   char *path = *path_js_utf8;
 
-  std::vector<char *> child_argv_vector;
+  char **child_argv = (char **)calloc(argv_js->Length(), sizeof(char *));
   for (u_int32_t i = 0; i < argv_js->Length(); i++) {
     Local<String> argv_js_current =
         argv_js->Get(context, i).ToLocalChecked().As<String>();
     String::Utf8Value argv_js_current_utf8(isolate, argv_js_current);
+    // needs to allocate string with `strdup` because otherwise it is removed
+    // from stack after this loop leave
     char *argv_current = strdup(*argv_js_current_utf8);
-    child_argv_vector.push_back(argv_current);
+    child_argv[i] = argv_current;
   }
 
-  char **envp;
-  char **child_argv = child_argv_vector.data();
+  char **environ = nullptr;
   pid_t child_pid = 0;
 
-  int res = posix_spawn(&child_pid, path, NULL, NULL, child_argv, envp);
+  int res = posix_spawn(&child_pid, path, NULL, NULL, child_argv, environ);
+
+  // free allocated memory
+  for (uint32_t i = 0; i < argv_js->Length(); i++) {
+    char *strToDeallocate = child_argv[i];
+    free(strToDeallocate);
+  }
+  free(child_argv);
 
   pid_js->Set(context, 0, Int32::New(isolate, child_pid)).ToChecked();
   args.GetReturnValue().Set(res);
