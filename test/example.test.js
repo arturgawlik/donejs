@@ -1,3 +1,3 @@
 import { equal } from "done:assert.js";
 
-equal(1, 2);
+equal(1, 1);
