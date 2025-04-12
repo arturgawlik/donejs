@@ -22,7 +22,7 @@
 #include <spawn.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <vector>
+#include <sys/wait.h>
 
 using v8::Array;
 using v8::ArrayBuffer;
@@ -44,7 +44,41 @@ using v8::Value;
 
 namespace done::syscall {
 
-void PosixSpawn(const FunctionCallbackInfo<Value> &args) {
+void WaitPidSlow(const FunctionCallbackInfo<Value> &args) {
+  Isolate *isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  if (!args[0]->IsNumber()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate, "'pid' must be an number when calling "
+                 "'waitpid' syscall.")));
+  }
+  if (!args[1]->IsInt32Array() || args[1].As<v8::Int32Array>()->Length() != 1) {
+    // same as in `PosixSpawnSlow`
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate, "'status' must be an IsInt32Array buffer when calling "
+                 "'waitpid' syscall.")));
+  }
+  if (!args[2]->IsNumber()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate, "'options' must be an number when calling "
+                 "'waitpid' syscall.")));
+  }
+
+  Local<Number> pid_js = args[0].As<Number>();
+  Local<Int32Array> status_js = args[1].As<Int32Array>();
+  Local<Number> options_js = args[2].As<Number>();
+  int pid = pid_js->Value();
+  int options = options_js->Value();
+  int statusPtr;
+
+  int res = waitpid(pid, &statusPtr, options);
+
+  status_js->Set(context, 0, Int32::New(isolate, statusPtr)).ToChecked();
+  args.GetReturnValue().Set(res);
+}
+
+void PosixSpawnSlow(const FunctionCallbackInfo<Value> &args) {
   Isolate *isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
 
@@ -513,45 +547,49 @@ void GetAddrInfoSlow(const FunctionCallbackInfo<Value> &args) {
 void Initialize(Local<ObjectTemplate> globalObjTmpl) {
   Isolate *isolate = Isolate::GetCurrent();
 
-  Local<ObjectTemplate> consoleObjTmpl = ObjectTemplate::New(isolate);
+  Local<ObjectTemplate> syscallObjTmpl = ObjectTemplate::New(isolate);
   globalObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "syscall"),
-                     consoleObjTmpl);
+                     syscallObjTmpl);
 
   // NETWORK
   Local<FunctionTemplate> gethostbynameFnTmpl =
       FunctionTemplate::New(isolate, GetAddrInfoSlow);
-  consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "getaddrinfo"),
+  syscallObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "getaddrinfo"),
                       gethostbynameFnTmpl);
 
   Local<FunctionTemplate> socketFnTmpl =
       FunctionTemplate::New(isolate, SocketSlow);
-  consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "socket"),
+  syscallObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "socket"),
                       socketFnTmpl);
 
   Local<FunctionTemplate> connectFnTmpl =
       FunctionTemplate::New(isolate, ConnectSlow);
-  consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "connect"),
+  syscallObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "connect"),
                       connectFnTmpl);
 
   Local<FunctionTemplate> recvFnTmpl = FunctionTemplate::New(isolate, RecvSlow);
-  consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "recv"),
+  syscallObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "recv"),
                       recvFnTmpl);
 
   Local<FunctionTemplate> closeFnTmpl =
       FunctionTemplate::New(isolate, CloseSlow);
-  consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "close"),
+  syscallObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "close"),
                       closeFnTmpl);
 
   // FILE SYSTEM
   Local<FunctionTemplate> globFnTmpl = FunctionTemplate::New(isolate, GlobSlow);
-  consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "glob"),
+  syscallObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "glob"),
                       globFnTmpl);
 
   // PROCESS
   Local<FunctionTemplate> posix_spawnFnTmpl =
-      FunctionTemplate::New(isolate, PosixSpawn);
-  consoleObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "posix_spawn"),
+      FunctionTemplate::New(isolate, PosixSpawnSlow);
+  syscallObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "posix_spawn"),
                       posix_spawnFnTmpl);
+  Local<FunctionTemplate> waitPidFnTmpl =
+      FunctionTemplate::New(isolate, WaitPidSlow);
+  syscallObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "waitpid"),
+                      waitPidFnTmpl);
 }
 
 } // namespace done::syscall
