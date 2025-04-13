@@ -9,7 +9,6 @@ v8
 *.lib
 *.so
 *.dylib
-done
 .vscode
 scratch
 deps
