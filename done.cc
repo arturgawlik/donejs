@@ -21,7 +21,6 @@ using v8::Local;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::String;
-using v8::Undefined;
 using v8::V8;
 
 Local<ObjectTemplate> initializeDoneBuildins() {
