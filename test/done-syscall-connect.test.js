@@ -3,6 +3,7 @@ import assert from "done:assert.js";
 const getaddrinfo = globalThis.done.syscall.getaddrinfo;
 const socket = globalThis.done.syscall.socket;
 const connect = globalThis.done.syscall.connect;
+const close = globalThis.done.syscall.close;
 
 // `connect` syscall should end without error
 (() => {
@@ -19,4 +20,7 @@ const connect = globalThis.done.syscall.connect;
     const connectRes = connect(fd, resGetAddrInfo.ai_addr, resGetAddrInfo.ai_addrlen);
 
     assert.check(connectRes === 0, 'connection attempt did not finished without errors.');
+
+    // after test
+    close(fd);
 })();

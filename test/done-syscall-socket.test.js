@@ -1,6 +1,7 @@
 import assert from "done:assert.js";
 
 const socket = globalThis.done.syscall.socket;
+const close = globalThis.done.syscall.close;
 
 // should return file descriptor for basic socket creation
 (() => {
@@ -11,4 +12,7 @@ const socket = globalThis.done.syscall.socket;
     const fd = socket(domain, type, protocol);
 
     assert.check(fd > 0, 'File descriptor with "socket" syscall was not created.');
+
+    // after test
+    close(fd);
 })();
