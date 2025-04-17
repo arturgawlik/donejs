@@ -260,6 +260,49 @@ void CloseSlow(const FunctionCallbackInfo<Value> &args) {
   args.GetReturnValue().Set(closeResCode);
 }
 
+void SendSlow(const FunctionCallbackInfo<Value> &args) {
+  Isolate *isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+
+  Local<Value> socketfdLocal = args[0].As<Value>();
+  Local<ArrayBuffer> bufferLocalVal = args[1].As<ArrayBuffer>();
+  Local<Value> bufferSizeLocal = args[2].As<Value>();
+  Local<Value> flagsLocal = args[3].As<Value>();
+
+  if (!socketfdLocal->IsNumber() || !bufferSizeLocal->IsNumber() ||
+      !flagsLocal->IsNumber()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate,
+        "'socket_fd', 'buffer_size', 'flags' must be an number when calling "
+        "'send' syscall")));
+    return;
+  }
+  if (!bufferLocalVal->IsArrayBuffer()) {
+    isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
+        isolate, "'buffer' must be an ArrayBuffer when calling "
+                 "'send' syscall")));
+    return;
+  }
+
+  int socketfd = socketfdLocal->Int32Value(context).ToChecked();
+  int bufferSizeLen = bufferSizeLocal->Int32Value(context).ToChecked();
+  int flags = flagsLocal->Int32Value(context).ToChecked();
+  void *bufferPtr = bufferLocalVal->Data();
+  char *buffer = static_cast<char *>(bufferPtr);
+
+  int bytes_send = send(socketfd, buffer, bufferSizeLen, flags);
+  if (bytes_send == -1) {
+    const char *errmsg = gai_strerror(bytes_send);
+    std::string msg = std::string("send syscall failed with msg: ") + errmsg;
+
+    isolate->ThrowException(Exception::Error(
+        String::NewFromUtf8(isolate, msg.c_str()).ToLocalChecked()));
+    return;
+  }
+
+  args.GetReturnValue().Set(bytes_send);
+}
+
 void RecvSlow(const FunctionCallbackInfo<Value> &args) {
   Isolate *isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
@@ -570,6 +613,10 @@ void Initialize(Local<ObjectTemplate> globalObjTmpl) {
   Local<FunctionTemplate> recvFnTmpl = FunctionTemplate::New(isolate, RecvSlow);
   syscallObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "recv"),
                       recvFnTmpl);
+
+  Local<FunctionTemplate> sendFnTmpl = FunctionTemplate::New(isolate, SendSlow);
+  syscallObjTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "send"),
+                      sendFnTmpl);
 
   Local<FunctionTemplate> closeFnTmpl =
       FunctionTemplate::New(isolate, CloseSlow);
