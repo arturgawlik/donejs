@@ -17,7 +17,7 @@ namespace done::textDecoder {
 
 // implemented based on
 // https://github.com/cjihrig/node/blob/f69726f70d34af9550c922afa39ab0f933272b64/src/encoding_binding.cc#L145
-void EncodeSlow(const FunctionCallbackInfo<Value> &args) {
+void DecodeSlow(const FunctionCallbackInfo<Value> &args) {
   Isolate *isolate = args.GetIsolate();
 
   if (!args[0]->IsArrayBuffer()) {
@@ -57,10 +57,10 @@ void Initialize(Local<ObjectTemplate> globalObjTmpl) {
   globalObjTmpl->Set(String::NewFromUtf8Literal(isolate, "textDecoder"),
                      textDecoderTmpl);
 
-  Local<FunctionTemplate> encodeSlowFnTmpl =
-      FunctionTemplate::New(isolate, EncodeSlow);
-  textDecoderTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "encode"),
-                       encodeSlowFnTmpl);
+  Local<FunctionTemplate> decodeSlowFnTmpl =
+      FunctionTemplate::New(isolate, DecodeSlow);
+  textDecoderTmpl->Set(v8::String::NewFromUtf8Literal(isolate, "decode"),
+                       decodeSlowFnTmpl);
 }
 
 } // namespace done::textDecoder

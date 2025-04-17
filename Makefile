@@ -60,6 +60,9 @@ process.o: ${OUT} src/process.cc## compile the process.cc object file
 text-decoder.o: ${OUT} src/text-decoder.cc## compile the text-decoder.cc object file
 	$(CXX) ${CCARGS} ${OPT} -DRUNTIME='"${RUNTIME}"' -DVERSION='"${VERSION}"' -I./v8 -I./v8/include -I./src ${WARN} ${V8_FLAGS} src/text-decoder.cc -o ${OUT}/text-decoder.o
 
+text-encoder.o: ${OUT} src/text-encoder.cc## compile the text-encoder.cc object file
+	$(CXX) ${CCARGS} ${OPT} -DRUNTIME='"${RUNTIME}"' -DVERSION='"${VERSION}"' -I./v8 -I./v8/include -I./src ${WARN} ${V8_FLAGS} src/text-encoder.cc -o ${OUT}/text-encoder.o
+
 module.o: ${OUT} src/module.cc## compile the module.cc object file
 	$(CXX) ${CCARGS} ${OPT} -DRUNTIME='"${RUNTIME}"' -DVERSION='"${VERSION}"' -I./v8 -I./v8/include -I./src ${WARN} ${V8_FLAGS} src/module.cc -o ${OUT}/module.o
 
@@ -72,9 +75,9 @@ jsfiles:
 ${RUNTIME}.o: ${OUT} ## compile runtime into an object file
 	$(CXX) ${CCARGS} ${OPT} -DRUNTIME='"${RUNTIME}"' -DVERSION='"${VERSION}"' ${V8_FLAGS} -I./v8 -I./v8/include -I./src ${WARN} ${RUNTIME}.cc -o ${OUT}/${RUNTIME}.o
 
-${RUNTIME}: ${OUT} jsfiles v8/include v8/libv8_monolith.a main.o ${RUNTIME}.o console.o syscall-wrapper.o fetch.o process.o text-decoder.o module.o internal/util.o ${OUT}/internal/util.o ## link the runtime for linux/macos
+${RUNTIME}: ${OUT} jsfiles v8/include v8/libv8_monolith.a main.o ${RUNTIME}.o console.o syscall-wrapper.o fetch.o process.o text-decoder.o text-encoder.o  module.o internal/util.o ${OUT}/internal/util.o ## link the runtime for linux/macos
 	@echo building ${RUNTIME} for ${os} on ${ARCH}
-	$(LINK) $(LARGS) ${OPT} ${OUT}/main.o ${OUT}/${RUNTIME}.o ${OUT}/console.o ${OUT}/syscall-wrapper.o ${OUT}/fetch.o ${OUT}/process.o ${OUT}/text-decoder.o ${OUT}/module.o ${OUT}/internal/util.o  -o ${OUT}/${TARGET} -L"./v8" -lv8_monolith -L"./src" ${LIB_DIRS}
+	$(LINK) $(LARGS) ${OPT} ${OUT}/main.o ${OUT}/${RUNTIME}.o ${OUT}/console.o ${OUT}/syscall-wrapper.o ${OUT}/fetch.o ${OUT}/process.o ${OUT}/text-decoder.o ${OUT}/text-encoder.o ${OUT}/module.o ${OUT}/internal/util.o  -o ${OUT}/${TARGET} -L"./v8" -lv8_monolith -L"./src" ${LIB_DIRS}
 
 test:
 	${OUT}/done --test

@@ -5,6 +5,7 @@
 #include "process.h"
 #include "syscall-wrapper.h"
 #include "text-decoder.h"
+#include "text-encoder.h"
 
 #include "v8-function.h"
 #include "v8-initialization.h"
@@ -35,6 +36,7 @@ Local<ObjectTemplate> initializeDoneBuildins() {
   done::fetch::Initialize(doneGlobalObjTmpl);
   done::syscall::Initialize(doneGlobalObjTmpl);
   done::textDecoder::Initialize(doneGlobalObjTmpl);
+  done::textEncoder::Initialize(doneGlobalObjTmpl);
 
   return globalObjTmpl;
 }
