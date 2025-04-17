@@ -14,6 +14,7 @@ $ ./done ./samples/test.js
 - [x] es modules dynamic `import()`
 - [x] `exit(code: number)` implemented as winter TC proposed standard https://github.com/wintercg/proposal-cli-api?tab=readme-ov-file#exiting
 - [x] `TextDecoder` with support only for `utf-8`/`utf8` decoding
+- [x] `TextEncoder`
 - [x] `process.argv` all program arguments
 - [x] `done.interpretArgv` function to retrieve all interpreted `argv`s
 - [x] `done.syscall` exposes linux syscall's to js side
@@ -21,6 +22,7 @@ $ ./done ./samples/test.js
   - [x] `socket`
   - [x] `connect`
   - [x] `recv`
+  - [x] `send`
   - [x] `close`
   - [x] `glob`
   - [x] `posix_spawn`
