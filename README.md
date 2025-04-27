@@ -28,4 +28,5 @@ $ ./done ./samples/test.js
   - [x] `posix_spawn`
   - [x] `waitpid`
 - [x] `--test` flag which is very basic test runner (used in done.js to actually test js land)
+- [x] basic `URL` (only features needed in `fetch`)
 - [ ] basic `fetch`
