@@ -4,6 +4,7 @@
 #include <v8.h>
 
 using v8::ArrayBuffer;
+using v8::DataView;
 using v8::Exception;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -20,11 +21,11 @@ namespace done::textDecoder {
 void DecodeSlow(const FunctionCallbackInfo<Value> &args) {
   Isolate *isolate = args.GetIsolate();
 
-  if (!args[0]->IsArrayBuffer()) {
+  if (!args[0]->IsArrayBuffer() && !args[0]->IsDataView()) {
     isolate->ThrowException(Exception::Error(String::NewFromUtf8Literal(
-        isolate,
-        "'input' must be an ArrayBuffer when calling 'encode(input, encoding)' "
-        "function")));
+        isolate, "'input' must be an ArrayBuffer or DataView when calling "
+                 "'encode(input, encoding)' "
+                 "function")));
   }
 
   if (!args[1]->IsString()) {
@@ -37,10 +38,26 @@ void DecodeSlow(const FunctionCallbackInfo<Value> &args) {
 
   if (encoding->StringEquals(String::NewFromUtf8Literal(isolate, "utf-8")) ||
       encoding->StringEquals(String::NewFromUtf8Literal(isolate, "utf8"))) {
-    Local<ArrayBuffer> buffer = args[0].As<ArrayBuffer>();
-    int bufferLen = buffer->ByteLength();
+    Local<ArrayBuffer> arrayBuffer;
+    bool isArrayBuffer = false;
+    Local<DataView> dataView;
+    if (args[0]->IsArrayBuffer()) {
+      isArrayBuffer = true;
+      arrayBuffer = args[0].As<ArrayBuffer>();
+    } else if (args[0]->IsDataView()) {
+      dataView = args[0].As<DataView>();
+    }
 
-    const char *data = (char *)buffer->Data();
+    const char *data;
+    int bufferLen;
+    if (isArrayBuffer) {
+      data = (char *)arrayBuffer->Data();
+      bufferLen = arrayBuffer->ByteLength();
+    } else {
+      data = (char *)dataView->Buffer()->Data();
+      bufferLen = dataView->ByteLength();
+    }
+
     Local<String> encodedVal =
         String::NewFromUtf8(isolate, data, v8::NewStringType::kNormal,
                             bufferLen)
