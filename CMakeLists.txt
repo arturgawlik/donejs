@@ -51,3 +51,7 @@ target_link_libraries(done PUBLIC utils)
 target_include_directories(utils PUBLIC v8/include)
 
 target_include_directories(done PUBLIC src)
+
+
+file(COPY ${CMAKE_SOURCE_DIR}/lib DESTINATION ${CMAKE_BINARY_DIR})
+file(COPY ${CMAKE_SOURCE_DIR}/test DESTINATION ${CMAKE_BINARY_DIR})
